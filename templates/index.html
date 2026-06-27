@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>METAR Reader — Plain-English Aviation Weather</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">✈</div>
+      <h1>METAR Reader</h1>
+      <p>Plain-English aviation weather from any airport worldwide</p>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <div class="search-container">
+      <div class="search-box">
+        <input
+          type="text"
+          id="airport-input"
+          class="airport-input"
+          placeholder="e.g. KJFK · EGLL · YSSY"
+          maxlength="4"
+          autocomplete="off"
+          autocapitalize="characters"
+          spellcheck="false"
+        >
+        <button class="search-btn" id="search-btn" onclick="fetchMetar()">Get Weather</button>
+      </div>
+      <p class="hint">
+        Use the 4-letter ICAO airport code.
+        US airports start with <strong>K</strong> (KORD = Chicago O'Hare).
+        Canadian airports start with <strong>C</strong> (CYYZ = Toronto Pearson).
+      </p>
+    </div>
+
+    <div id="loading" class="loading hidden">
+      <div class="spinner"></div>
+      <p>Fetching latest weather data&hellip;</p>
+    </div>
+
+    <div id="error-box" class="error-box hidden"></div>
+
+    <div id="result" class="result hidden"></div>
+
+  </main>
+
+  <footer class="site-footer">
+    <p>
+      Data from
+      <a href="https://aviationweather.gov" target="_blank" rel="noopener noreferrer">
+        Aviation Weather Center
+      </a>
+      &middot; Refreshed on every search
+    </p>
+  </footer>
+
+  <script>
+    const input = document.getElementById('airport-input');
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') fetchMetar(); });
+    input.focus();
+
+    async function fetchMetar() {
+      const airport = input.value.trim().toUpperCase();
+      if (!airport) { input.focus(); return; }
+
+      setLoading(true);
+
+      try {
+        const res = await fetch('/fetch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ airport }),
+        });
+        const data = await res.json();
+        if (!res.ok) { showError(data.error); return; }
+        renderResult(data);
+      } catch (_) {
+        showError('Could not connect to the server. Please check your network and try again.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function setLoading(on) {
+      document.getElementById('search-btn').disabled = on;
+      toggle('loading', on);
+      if (on) { hide('error-box'); hide('result'); }
+    }
+
+    function showError(msg) {
+      hide('result');
+      const el = document.getElementById('error-box');
+      el.textContent = msg;
+      show('error-box');
+    }
+
+    function renderResult(d) {
+      hide('error-box');
+      const cat   = d.flight_category || {};
+      const color = cat.color || '#7f8c8d';
+
+      const weatherBanner = d.weather
+        ? `<div class="weather-banner">⚠&thinsp; ${d.weather}</div>`
+        : '';
+
+      const cloudsRows = (d.cloud_layers || [])
+        .map(l => `<tr><td>${l.cover}</td><td>${l.base}</td></tr>`)
+        .join('');
+
+      const skyCard = cloudsRows
+        ? `<div class="sky-card">
+             <h3>&#9729; Sky Conditions</h3>
+             <table class="cloud-table">
+               <thead><tr><th>Coverage</th><th>Base</th></tr></thead>
+               <tbody>${cloudsRows}</tbody>
+             </table>
+           </div>`
+        : '';
+
+      document.getElementById('result').innerHTML = `
+        <div class="summary-card" style="--cat-color:${color}">
+          <div class="summary-top">
+            <div>
+              <div class="station-name">${d.name || d.station}</div>
+              <div class="station-id">${d.station}&ensp;&middot;&ensp;${d.time}</div>
+            </div>
+            <div class="cat-badge" style="background:${color}" title="${cat.desc}">${cat.label}</div>
+          </div>
+          ${weatherBanner}
+          <p class="summary-text">${d.summary}</p>
+          <p class="cat-desc" style="color:${color}">${cat.desc}</p>
+        </div>
+
+        <div class="cards-grid">
+          ${card('&#128168;', 'Wind',        d.wind,        d.wind_detail)}
+          ${card('&#128065;', 'Visibility',  d.visibility,  d.visibility_detail)}
+          ${card('&#9650;',   'Ceiling',     d.ceiling,     '')}
+          ${card('&#127777;', 'Temperature', d.temperature, d.humidity_note || '')}
+          ${card('&#128167;', 'Dew Point',   d.dewpoint,    '')}
+          ${card('&#128202;', 'Altimeter',   d.altimeter,   '')}
+        </div>
+
+        ${skyCard}
+
+        <details class="raw-metar">
+          <summary>Raw METAR</summary>
+          <code>${d.raw}</code>
+        </details>
+      `;
+
+      show('result');
+    }
+
+    function card(icon, label, value, sub) {
+      return `<div class="wx-card">
+        <div class="card-icon">${icon}</div>
+        <div class="card-label">${label}</div>
+        <div class="card-value">${value || '&mdash;'}</div>
+        ${sub ? `<div class="card-sub">${sub}</div>` : ''}
+      </div>`;
+    }
+
+    function show(id)          { document.getElementById(id).classList.remove('hidden'); }
+    function hide(id)          { document.getElementById(id).classList.add('hidden'); }
+    function toggle(id, force) { document.getElementById(id).classList.toggle('hidden', !force); }
+  </script>
+
+</body>
+</html>

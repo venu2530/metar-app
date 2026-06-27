@@ -1,0 +1,356 @@
+/* =============================================
+   METAR Reader
+   ============================================= */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:    #0d47a1;
+  --sky:     #0277bd;
+  --bg:      #f0f4f8;
+  --white:   #ffffff;
+  --text:    #1e2a38;
+  --muted:   #64748b;
+  --border:  #dce4ed;
+  --radius:  12px;
+  --shadow:  0 2px 14px rgba(0, 0, 0, 0.07);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Header ─────────────────────────────────── */
+
+.site-header {
+  background: linear-gradient(140deg, #0a3880 0%, #1565c0 55%, #0277bd 100%);
+  color: #fff;
+  padding: 3rem 1.5rem 2.5rem;
+  text-align: center;
+}
+
+.logo { font-size: 3rem; line-height: 1; margin-bottom: 0.4rem; }
+
+.site-header h1 {
+  font-size: clamp(1.75rem, 5vw, 2.6rem);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  margin-bottom: 0.4rem;
+}
+
+.site-header p {
+  font-size: 1.05rem;
+  opacity: 0.82;
+}
+
+/* ── Main ────────────────────────────────────── */
+
+.main {
+  flex: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.25rem 3rem;
+  width: 100%;
+}
+
+/* ── Search ──────────────────────────────────── */
+
+.search-container { margin-bottom: 2rem; }
+
+.search-box {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.airport-input {
+  flex: 1;
+  padding: 0.85rem 1.2rem;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  outline: none;
+  background: var(--white);
+  transition: border-color 0.18s, box-shadow 0.18s;
+}
+
+.airport-input::placeholder { letter-spacing: 0; font-weight: 400; font-size: 1rem; }
+.airport-input:focus { border-color: var(--sky); box-shadow: 0 0 0 3px rgba(2, 119, 189, 0.15); }
+
+.search-btn {
+  padding: 0.85rem 1.75rem;
+  background: var(--sky);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.18s, transform 0.1s;
+}
+
+.search-btn:hover:not(:disabled) { background: #01579b; }
+.search-btn:active:not(:disabled) { transform: scale(0.97); }
+.search-btn:disabled { opacity: 0.6; cursor: default; }
+
+.hint { font-size: 0.83rem; color: var(--muted); line-height: 1.5; }
+
+/* ── Loading ─────────────────────────────────── */
+
+.loading {
+  text-align: center;
+  padding: 3.5rem 1rem;
+  color: var(--muted);
+}
+
+.spinner {
+  width: 42px;
+  height: 42px;
+  border: 4px solid var(--border);
+  border-top-color: var(--sky);
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Error ───────────────────────────────────── */
+
+.error-box {
+  background: #fff5f5;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius);
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+/* ── Summary card ────────────────────────────── */
+
+.summary-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  margin-bottom: 1.1rem;
+  border-left: 5px solid var(--cat-color, #64748b);
+}
+
+.summary-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.station-name {
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.station-id {
+  font-size: 0.82rem;
+  color: var(--muted);
+  margin-top: 0.2rem;
+}
+
+.cat-badge {
+  flex-shrink: 0;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 0.3rem 0.9rem;
+  border-radius: 999px;
+}
+
+.weather-banner {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  border-radius: 8px;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  margin-bottom: 0.85rem;
+}
+
+.summary-text {
+  font-size: 0.97rem;
+  line-height: 1.65;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+}
+
+.cat-desc {
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+/* ── Cards grid ──────────────────────────────── */
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.1rem;
+}
+
+.wx-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.15rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.card-icon {
+  font-size: 1.35rem;
+  margin-bottom: 0.15rem;
+}
+
+.card-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--muted);
+}
+
+.card-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.card-sub {
+  font-size: 0.75rem;
+  color: var(--muted);
+  margin-top: 0.1rem;
+}
+
+/* ── Sky conditions card ─────────────────────── */
+
+.sky-card {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.1rem 1.25rem;
+  margin-bottom: 1.1rem;
+}
+
+.sky-card h3 {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--muted);
+  margin-bottom: 0.75rem;
+}
+
+.cloud-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.cloud-table th,
+.cloud-table td {
+  text-align: left;
+  padding: 0.5rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.cloud-table th {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cloud-table tbody tr:last-child td { border-bottom: none; }
+
+/* ── Raw METAR ───────────────────────────────── */
+
+.raw-metar {
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.raw-metar summary {
+  padding: 0.9rem 1.25rem;
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.9px;
+  color: var(--muted);
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.raw-metar summary::before { content: '▶'; font-size: 0.6rem; transition: transform 0.2s; }
+.raw-metar[open] summary::before { transform: rotate(90deg); }
+.raw-metar summary:hover { color: var(--text); }
+
+.raw-metar code {
+  display: block;
+  padding: 1rem 1.25rem;
+  background: #f8fafc;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 0.83rem;
+  color: var(--text);
+  border-top: 1px solid var(--border);
+  word-break: break-all;
+  line-height: 1.7;
+}
+
+/* ── Footer ──────────────────────────────────── */
+
+.site-footer {
+  text-align: center;
+  padding: 1.25rem 1rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+  border-top: 1px solid var(--border);
+}
+
+.site-footer a { color: var(--sky); text-decoration: none; }
+.site-footer a:hover { text-decoration: underline; }
+
+/* ── Utility ─────────────────────────────────── */
+
+.hidden { display: none !important; }
+
+/* ── Responsive ──────────────────────────────── */
+
+@media (max-width: 620px) {
+  .search-box { flex-direction: column; }
+  .cards-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 380px) {
+  .cards-grid { grid-template-columns: 1fr; }
+}
